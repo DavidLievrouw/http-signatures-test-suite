@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const {exec} = require('child_process');
 
 async function generate(file, options) {
@@ -19,17 +20,18 @@ async function generate(file, options) {
     args += value;
   }
   // this cat filePath - the dash is the last pipe op
-  const httpMessage =
-    `echo -e '${latestDate}\n\n{"hello": "world"}' | cat ${filePath} - | `;
-  const binaryOps = `${options.generator} ${options.command} `;
-  const command = httpMessage + binaryOps + args;
-  const result = await runTest(command);
+  const inputStr = `${latestDate}\n\n{"hello": "world"}`;
+  const httpMessage = fs.readFileSync(filePath, 'utf8') + inputStr;
+  const binaryOps = `"${options.generator}" ${options.command} `;
+  const command = binaryOps + args;
+  const result = await runTest(command, httpMessage);
   return result;
 }
 
-function runTest(command) {
+function runTest(command, httpMessage) {
   return new Promise((resolve, reject) => {
     const child = exec(command);
+    child.stdin.end(httpMessage);
     const streams = Promise.all([
       streamToString(child.stdout),
       streamToString(child.stderr)
